@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sih26143_maritime_engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - DEMO_MODE=true
+      - DATABASE_URL=postgresql://maritime_forensics:maritime_secure_pass_2026@postgres:5432/maritime_forensics_db
+      - API_PORT=8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - maritime_net
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: sih26143_postgis_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=maritime_forensics
+      - POSTGRES_PASSWORD=maritime_secure_pass_2026
+      - POSTGRES_DB=maritime_forensics_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maritime_forensics -d maritime_forensics_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maritime_net
+
+networks:
+  maritime_net:
+    driver: bridge
+
+volumes:
+  postgis_data:
