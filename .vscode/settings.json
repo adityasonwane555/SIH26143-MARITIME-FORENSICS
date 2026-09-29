@@ -1,0 +1,17 @@
+{
+  "python.defaultInterpreterPath": "C:\\Program Files\\Python313\\python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}",
+    "${workspaceFolder}/src",
+    "C:\\Users\\Aditya\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages",
+    "C:\\Users\\Aditya\\AppData\\Roaming\\Python\\Python313\\site-packages",
+    "C:\\Program Files\\Python313\\Lib\\site-packages"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}",
+    "${workspaceFolder}/src",
+    "C:\\Users\\Aditya\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages",
+    "C:\\Users\\Aditya\\AppData\\Roaming\\Python\\Python313\\site-packages",
+    "C:\\Program Files\\Python313\\Lib\\site-packages"
+  ]
+}
