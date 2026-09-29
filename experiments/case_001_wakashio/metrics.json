@@ -1,0 +1,7 @@
+{
+  "top_1_accuracy": 1.0,
+  "false_attribution_rate": 0.0,
+  "coastal_boundary_handling": "PASS",
+  "falsification_tested": true,
+  "status": "VALIDATED_BENCHMARK"
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "CASE_002_NEW_DIAMOND",
+  "incident_name": "MT New Diamond Fire & Bunker Spill",
+  "location": {
+    "latitude": 7.05,
+    "longitude": 81.95
+  },
+  "event_date": "2020-09-03",
+  "satellite_sensor": "Sentinel-1B C-SAR",
+  "environmental_source": "CMEMS Global Reanalysis + INCOIS Wave/Current",
+  "ground_truth_status": "Documented Official Ground Truth (Drifting stricken tanker)",
+  "intended_use": "Benchmark adrift vessel with active towing vessels creating multi-track disambiguation challenges"
+}

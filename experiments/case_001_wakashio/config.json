@@ -1,0 +1,13 @@
+{
+  "case_id": "CASE_001_WAKASHIO",
+  "incident_name": "MV Wakashio Grounding & Heavy Fuel Oil Spill",
+  "location": {
+    "latitude": -20.443,
+    "longitude": 57.745
+  },
+  "event_date": "2020-07-25 / 2020-08-06",
+  "satellite_sensor": "Sentinel-1A SAR + Sentinel-2 MSI",
+  "environmental_source": "Copernicus Marine (CMEMS Global 0.083\u00b0)",
+  "ground_truth_status": "Documented Official Ground Truth (Single bulk carrier)",
+  "intended_use": "Benchmark single obvious candidate with extreme coastal boundary currents"
+}

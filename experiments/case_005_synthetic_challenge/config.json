@@ -1,0 +1,11 @@
+{
+  "case_id": "CASE_005_SYNTHETIC_CHALLENGE",
+  "description": "Controlled 3-vessel synthetic benchmark with true polluter (Alpha), decoy (Beta), and upstream gap vessel (Gamma).",
+  "hindcast_hours": 6.0,
+  "dt_seconds": 300.0,
+  "advection_scheme": "Runge-Kutta 4th-Order",
+  "wind_drift_factor": 0.032,
+  "turbulent_diffusion_m2s": 5.0,
+  "falsification_enabled": true,
+  "counterfactual_enabled": true
+}
