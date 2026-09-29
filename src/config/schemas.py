@@ -4,7 +4,7 @@ Strictly typed data contracts across all pipeline stages.
 """
 
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field, field_validator
@@ -142,7 +142,7 @@ class EvidenceItem(BaseModel):
     source: str = Field(..., description="e.g. AIS, Metocean, SAR")
     confidence: float = Field(..., ge=0.0, le=1.0)
     explanation: str
-    timestamp_evaluated: datetime = Field(default_factory=datetime.utcnow)
+    timestamp_evaluated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class FalsificationResult(BaseModel):
