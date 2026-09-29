@@ -1,0 +1,16 @@
+{
+  "timestamp": "2024-05-10T16:00:00+00:00",
+  "bounds": {
+    "min_lat": 15.0,
+    "max_lat": 16.0,
+    "min_lon": 71.5,
+    "max_lon": 73.0
+  },
+  "u_current_ms": 0.25,
+  "v_current_ms": -0.15,
+  "u_wind10_ms": 4.0,
+  "v_wind10_ms": -3.0,
+  "sea_surface_temp_c": 29.5,
+  "wave_height_m": 1.2,
+  "source": "SYNTHETIC_ANALYTICAL_TRUTH"
+}
