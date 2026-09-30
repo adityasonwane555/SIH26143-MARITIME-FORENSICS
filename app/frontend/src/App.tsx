@@ -21,7 +21,8 @@ import {
   Radio
 } from 'lucide-react';
 
-declare const L: any; // Leaflet global from CDN
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface Hypothesis {
   hypothesis_id: string;
@@ -130,12 +131,13 @@ export default function App() {
     const map = L.map(mapRef.current, {
       center: [15.48, 72.24],
       zoom: 11,
-      zoomControl: false
+      zoomControl: false,
+      preferCanvas: true
     });
 
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
-    // CartoDB Dark Matter Tiles
+    // Primary: CartoDB Dark Matter Tiles
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
       subdomains: 'abcd',
@@ -144,7 +146,21 @@ export default function App() {
 
     layersGroup.current = L.layerGroup().addTo(map);
     mapInstance.current = map;
+
+    // Ensure map computes its container bounding box properly
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
+
 
   // 5. Update Map Layers on Dossier Change
   useEffect(() => {
@@ -486,8 +502,9 @@ export default function App() {
         </aside>
 
         {/* CENTER COLUMN: HIGH-DENSITY GEOSPATIAL MAP */}
-        <main style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+        <main style={{ position: 'relative', width: '100%', height: '100%', minHeight: '100%', overflow: 'hidden' }}>
+          <div ref={mapRef} style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+
 
           {/* Map Layer Control Widget */}
           <div style={{
