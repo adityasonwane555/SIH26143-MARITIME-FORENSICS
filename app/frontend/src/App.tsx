@@ -137,12 +137,29 @@ export default function App() {
 
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
-    // Primary: CartoDB Dark Matter Tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      subdomains: 'abcd',
+    // 100% Key-Free, Open-Access Basemaps (No API Key Required)
+    const osmDark = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      className: 'dark-osm-tiles',
       maxZoom: 19
     }).addTo(map);
+
+    const esriOcean = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; GEBCO, NOAA',
+      maxZoom: 13
+    });
+
+    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri, Earthstar Geographics',
+      maxZoom: 18
+    });
+
+    L.control.layers({
+      'Dark Forensics (Key-Free)': osmDark,
+      'Ocean Nautical (ESRI)': esriOcean,
+      'Satellite Imagery (ESRI)': esriSatellite
+    }, undefined, { position: 'bottomleft' }).addTo(map);
+
 
     layersGroup.current = L.layerGroup().addTo(map);
     mapInstance.current = map;

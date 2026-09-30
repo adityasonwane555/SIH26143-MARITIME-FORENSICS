@@ -116,3 +116,26 @@ button:hover {
 button:active {
   transform: scale(0.98);
 }
+
+/* Key-Free Dark Mode OpenStreetMap Tile Filter */
+.dark-osm-tiles {
+  filter: invert(100%) hue-rotate(180deg) brightness(88%) contrast(90%);
+  -webkit-filter: invert(100%) hue-rotate(180deg) brightness(88%) contrast(90%);
+}
+
+/* Dark Theme for Leaflet Controls */
+.leaflet-control-layers {
+  background: rgba(15, 22, 36, 0.92) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-main) !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.leaflet-control-layers-base label {
+  color: var(--text-main) !important;
+  cursor: pointer;
+}
+
