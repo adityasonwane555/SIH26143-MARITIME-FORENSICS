@@ -97,14 +97,16 @@ class AdversarialFalsificationEngine:
                 observed_spill=spill,
                 metocean=metocean
             )
-            cf_iou = cf_res.get("bbox_iou")
+            cf_iou = cf_res.get("bbox_iou") or 0.0
+            cf_centroid_err = cf_res.get("centroid_error_km")
+            cf_centroid_err = 999.0 if cf_centroid_err is None else cf_centroid_err
             cf_hausdorff = cf_res.get("hausdorff_distance_km")
 
             if not cf_res.get("survives_counterfactual", False):
                 challenges_failed += 1
                 contradictions.append(
                     f"COUNTERFACTUAL_FAILURE: Simulated forward plume from vessel location missed observed slick "
-                    f"(centroid error: {cf_res.get('centroid_error_km', 999.0):.2f} km, IoU: {cf_iou:.2f})."
+                    f"(centroid error: {cf_centroid_err:.2f} km, IoU: {cf_iou:.2f})."
                 )
             else:
                 challenges_passed += 1

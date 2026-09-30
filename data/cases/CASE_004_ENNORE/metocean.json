@@ -1,0 +1,10 @@
+{
+  "timestamp": "2017-01-28T06:00:00Z",
+  "current_u_mps": 0.15,
+  "current_v_mps": 0.22,
+  "wind_u_mps": -3.8,
+  "wind_v_mps": -2.9,
+  "source": "INCOIS Coastal Ocean Forecast",
+  "sea_surface_temp_c": 27.8,
+  "wave_height_m": 1.4
+}

@@ -1,0 +1,10 @@
+{
+  "timestamp": "2020-09-04T12:00:00Z",
+  "current_u_mps": 0.38,
+  "current_v_mps": 0.14,
+  "wind_u_mps": 4.5,
+  "wind_v_mps": 1.8,
+  "source": "Copernicus CMEMS / ERA5 Southwest Monsoon",
+  "sea_surface_temp_c": 29.1,
+  "wave_height_m": 1.9
+}

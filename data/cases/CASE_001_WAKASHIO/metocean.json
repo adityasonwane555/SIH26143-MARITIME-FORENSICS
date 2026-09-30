@@ -1,0 +1,10 @@
+{
+  "timestamp": "2020-08-06T12:00:00Z",
+  "current_u_mps": -0.18,
+  "current_v_mps": 0.24,
+  "wind_u_mps": -6.2,
+  "wind_v_mps": 4.1,
+  "source": "CMEMS Global Reanalysis / ERA5",
+  "sea_surface_temp_c": 24.5,
+  "wave_height_m": 2.8
+}

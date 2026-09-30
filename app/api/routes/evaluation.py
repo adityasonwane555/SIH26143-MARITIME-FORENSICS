@@ -4,7 +4,7 @@ from typing import Dict, Any
 
 from src.ingestion.loader import ForensicDataLoader
 from src.attribution.baseline import BaselineAttributionPipeline
-from app.api.routes.investigation import get_dossier
+from app.api.routes.investigation import get_dossier, get_case_paths
 
 router = APIRouter(prefix="/evaluation", tags=["Evaluation & Benchmarks"])
 
@@ -14,11 +14,13 @@ def compare_baseline_vs_proposed(case_id: str = Query("CASE_005_SYNTHETIC_CHALLE
     Computes side-by-side comparison metrics between the heuristic baseline
     and the proposed forensic intelligence engine.
     """
-    spill = ForensicDataLoader.load_slick_geojson("data/synthetic/detected_slick.geojson")
-    met = ForensicDataLoader.load_metocean_json("data/synthetic/metocean.json")
-    tracks = ForensicDataLoader.load_ais_csv("data/synthetic/vessel_traffic.csv")
+    slick_path, metocean_path, ais_path = get_case_paths(case_id)
+    spill = ForensicDataLoader.load_slick_geojson(slick_path)
+    met = ForensicDataLoader.load_metocean_json(metocean_path)
+    tracks = ForensicDataLoader.load_ais_csv(ais_path)
 
     # 1. Run Baseline Pipeline
+
     baseline_res = BaselineAttributionPipeline().run(spill, met, tracks)
 
     # 2. Get Proposed Engine Dossier

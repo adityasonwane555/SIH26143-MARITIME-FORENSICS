@@ -115,7 +115,12 @@ class CounterfactualSimulator:
             return {
                 "is_feasible": False,
                 "error_reason": "Release timestamp is after satellite acquisition time",
-                "counterfactual_score": 0.0
+                "counterfactual_score": 0.0,
+                "centroid_error_km": 999.0,
+                "hausdorff_distance_km": 999.0,
+                "bbox_iou": 0.0,
+                "counterfactual_consistency_score": 0.0,
+                "survives_counterfactual": False
             }
 
         # Seed particles around candidate coordinate (simulating 10-minute continuous release)

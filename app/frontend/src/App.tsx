@@ -56,7 +56,20 @@ interface Dossier {
   audit_trail: any;
 }
 
+interface IncidentMeta {
+  case_id: string;
+  incident_name: string;
+  date_start: string;
+  date_end: string;
+  latitude: string;
+  longitude: string;
+  source_type: string;
+  notes: string;
+}
+
 export default function App() {
+  const [incidents, setIncidents] = useState<IncidentMeta[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE_005_SYNTHETIC_CHALLENGE');
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [loading, setLoading] = useState(true);
   const [hindcastHours, setHindcastHours] = useState(6.0);
@@ -75,17 +88,42 @@ export default function App() {
   const mapInstance = useRef<any>(null);
   const layersGroup = useRef<any>(null);
 
+  // Load Incident Catalog on Mount
+  useEffect(() => {
+    fetch('/api/v1/incidents')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setIncidents(data);
+        }
+      })
+      .catch(err => console.error('Failed to load incidents catalog:', err));
+  }, []);
+
   // 1. Fetch Investigation Dossier
-  const fetchInvestigation = async () => {
+  const fetchInvestigation = async (caseId = selectedCaseId, hours = hindcastHours) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/investigation/run?case_id=CASE_005_SYNTHETIC_CHALLENGE&hindcast_hours=${hindcastHours}`, {
+      const res = await fetch(`/api/v1/investigation/run?case_id=${caseId}&hindcast_hours=${hours}`, {
         method: 'POST'
       });
       const data = await res.json();
       setDossier(data);
       if (data.leading_hypothesis_id) {
         setSelectedHypId(data.leading_hypothesis_id);
+      }
+
+      // Fly map to detected slick or estimated origin
+      if (mapInstance.current) {
+        if (data.detected_slick?.coordinates?.[0]?.[0]) {
+          const pt = data.detected_slick.coordinates[0][0]; // [lon, lat]
+          mapInstance.current.flyTo([pt[1], pt[0]], 11, { duration: 1.2 });
+        } else if (data.origin_estimate?.estimated_centroid) {
+          const c = data.origin_estimate.estimated_centroid;
+          mapInstance.current.flyTo([c.latitude, c.longitude], 11, { duration: 1.2 });
+        } else if (data.location?.latitude && data.location?.longitude) {
+          mapInstance.current.flyTo([data.location.latitude, data.location.longitude], 11, { duration: 1.2 });
+        }
       }
     } catch (err) {
       console.error('Failed to run investigation:', err);
@@ -97,7 +135,7 @@ export default function App() {
   // 2. Fetch Comparison Data
   const fetchComparison = async () => {
     try {
-      const res = await fetch('/api/v1/evaluation/compare?case_id=CASE_005_SYNTHETIC_CHALLENGE');
+      const res = await fetch(`/api/v1/evaluation/compare?case_id=${selectedCaseId}`);
       const data = await res.json();
       setComparisonData(data);
       setShowComparison(true);
@@ -109,7 +147,7 @@ export default function App() {
   // 3. Attack Hypothesis Action
   const attackHypothesis = async (hypId: string) => {
     try {
-      const res = await fetch(`/api/v1/falsification/attack?case_id=CASE_005_SYNTHETIC_CHALLENGE&hypothesis_id=${hypId}`, {
+      const res = await fetch(`/api/v1/falsification/attack?case_id=${selectedCaseId}&hypothesis_id=${hypId}`, {
         method: 'POST'
       });
       const data = await res.json();
@@ -120,8 +158,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchInvestigation();
-  }, [hindcastHours]);
+    fetchInvestigation(selectedCaseId, hindcastHours);
+  }, [selectedCaseId, hindcastHours]);
 
   // 4. Initialize Map
   useEffect(() => {
@@ -230,40 +268,45 @@ export default function App() {
 
     // Render AIS Tracks
     if (showAIS) {
-      // Fetch and draw AIS lines
-      fetch('/api/v1/investigation/layers/CASE_005_SYNTHETIC_CHALLENGE')
+      // Fetch and draw AIS lines dynamically for the selected case
+      fetch(`/api/v1/investigation/layers/${selectedCaseId}`)
         .then(r => r.json())
         .then(geo => {
+          if (!geo || !geo.features) return;
+          const trackColors = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#06b6d4'];
+          let colorIdx = 0;
           for (const feat of geo.features) {
             if (feat.properties.layer_type === 'AIS_TRACK') {
               const coords = feat.geometry.coordinates.map((pt: number[]) => [pt[1], pt[0]]);
               const mmsi = feat.properties.mmsi;
-              let trackColor = '#3b82f6';
-              if (mmsi === '419000111') trackColor = '#10b981'; // Alpha
-              if (mmsi === '419000222') trackColor = '#f59e0b'; // Beta
-              if (mmsi === '419000333') trackColor = '#ef4444'; // Gamma
+              let trackColor = trackColors[colorIdx % trackColors.length];
+              if (mmsi === '419000111' || mmsi === '356354000' || mmsi === '357388000') trackColor = '#10b981';
+              if (mmsi === '419000222' || mmsi === '417000101' || mmsi === '352898000') trackColor = '#f59e0b';
+              if (mmsi === '419000333' || mmsi === '358589000' || mmsi === '419071000') trackColor = '#ef4444';
+              colorIdx++;
 
               L.polyline(coords, {
                 color: trackColor,
-                weight: 2,
+                weight: 2.5,
                 opacity: 0.85
-              }).bindTooltip(`<b>${feat.properties.vessel_name}</b> (${feat.properties.vessel_type})`, { sticky: true }).addTo(layersGroup.current);
+              }).bindTooltip(`<b>${feat.properties.vessel_name}</b> (${feat.properties.vessel_type || 'Vessel'})<br>MMSI: ${mmsi}`, { sticky: true }).addTo(layersGroup.current);
 
               // Add start and end points
               if (coords.length > 0) {
                 const lastPt = coords[coords.length - 1];
                 L.circleMarker(lastPt, {
-                  radius: 4,
+                  radius: 5,
                   color: trackColor,
                   fillColor: trackColor,
                   fillOpacity: 1
-                }).addTo(layersGroup.current);
+                }).bindPopup(`<b>${feat.properties.vessel_name}</b><br>Latest Position<br>Lat: ${lastPt[0].toFixed(4)}, Lon: ${lastPt[1].toFixed(4)}`).addTo(layersGroup.current);
               }
             }
           }
-        });
+        })
+        .catch(err => console.error('Failed to load layers:', err));
     }
-  }, [dossier, showSlick, showOrigin, showAIS]);
+  }, [dossier, showSlick, showOrigin, showAIS, selectedCaseId]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: 'var(--bg-primary)' }}>
@@ -316,18 +359,41 @@ export default function App() {
             AIR-GAPPED DEMO MODE
           </div>
 
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(59, 130, 246, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            padding: '4px 10px',
-            borderRadius: '20px',
-            fontSize: '11px',
-            color: 'var(--accent-blue)'
-          }}>
-            CASE: CASE_005_SYNTHETIC
+          {/* Incident Case Selector Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Incident:
+            </span>
+            <select
+              id="incident-selector"
+              value={selectedCaseId}
+              onChange={(e) => {
+                const newCaseId = e.target.value;
+                setSelectedCaseId(newCaseId);
+              }}
+              style={{
+                background: 'rgba(15, 23, 42, 0.95)',
+                border: '1px solid var(--accent-cyan)',
+                color: '#fff',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none',
+                boxShadow: '0 0 12px rgba(0, 240, 255, 0.15)'
+              }}
+            >
+              {incidents.length > 0 ? (
+                incidents.map((inc) => (
+                  <option key={inc.case_id} value={inc.case_id} style={{ background: '#0f172a', color: '#fff' }}>
+                    {inc.case_id.replace('CASE_', '')}: {inc.incident_name}
+                  </option>
+                ))
+              ) : (
+                <option value="CASE_005_SYNTHETIC_CHALLENGE">005_SYNTHETIC: Adversarial Benchmark</option>
+              )}
+            </select>
           </div>
 
           <button
@@ -391,65 +457,86 @@ export default function App() {
           gap: '14px',
           overflowY: 'auto'
         }}>
-          {/* Incident Badge */}
-          <div className="glass-panel" style={{ padding: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Incident Context</span>
-              <span className="mono" style={{ fontSize: '11px', color: 'var(--accent-cyan)' }}>CASE_005</span>
-            </div>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '6px' }}>Arabian Sea Multi-Vessel Incident</h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-              Synthetic multi-candidate benchmark with analytical current, decoy ship, and look-alike anomaly.
-            </p>
-          </div>
+          {/* Incident Context Panel */}
+          {(() => {
+            const currentMeta = incidents.find(i => i.case_id === selectedCaseId);
+            const isLookalike = dossier?.audit_trail?.lookalike_analysis?.is_lookalike_suspected;
+            const windSpeed = dossier?.audit_trail?.lookalike_analysis?.wind_speed_ms;
+            
+            return (
+              <>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Incident Context</span>
+                    <span className="mono" style={{ fontSize: '11px', color: 'var(--accent-cyan)' }}>{selectedCaseId.replace('CASE_', '')}</span>
+                  </div>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '6px' }}>
+                    {dossier?.title || currentMeta?.incident_name || 'Active Incident'}
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                    {currentMeta?.notes || 'Comprehensive forensic investigation with backward Lagrangian drift, AIS track reconciliation, and counterfactual validation.'}
+                  </p>
+                </div>
 
-          {/* Satellite Scene Specs */}
-          <div className="glass-panel" style={{ padding: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-              <Radio size={16} color="var(--accent-blue)" />
-              <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Spaceborne SAR Observation</h4>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
-              <div>
-                <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>SENSOR</span>
-                <p className="mono" style={{ color: '#fff', fontWeight: 600 }}>Sentinel-1 C-SAR</p>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>MODE / POL</span>
-                <p className="mono" style={{ color: '#fff', fontWeight: 600 }}>IW / VV+VH</p>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>ACQUISITION TIME</span>
-                <p className="mono" style={{ color: 'var(--accent-cyan)', fontSize: '11px' }}>16:00:00 UTC</p>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>LOOK-ALIKE RISK</span>
-                <p className="mono" style={{ color: 'var(--accent-emerald)', fontWeight: 600 }}>LOW (PASS)</p>
-              </div>
-            </div>
-          </div>
+                {/* Satellite Scene Specs */}
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <Radio size={16} color="var(--accent-blue)" />
+                    <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Spaceborne SAR Observation</h4>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                    <div>
+                      <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>SENSOR</span>
+                      <p className="mono" style={{ color: '#fff', fontWeight: 600 }}>Sentinel-1 C-SAR</p>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>MODE / POL</span>
+                      <p className="mono" style={{ color: '#fff', fontWeight: 600 }}>IW / VV+VH</p>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>ACQUISITION TIME</span>
+                      <p className="mono" style={{ color: 'var(--accent-cyan)', fontSize: '11px' }}>
+                        {dossier?.incident_time ? new Date(dossier.incident_time).toUTCString().slice(17, 25) + ' UTC' : '12:00:00 UTC'}
+                      </p>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>LOOK-ALIKE RISK</span>
+                      <p className="mono" style={{ color: isLookalike ? 'var(--accent-red)' : 'var(--accent-emerald)', fontWeight: 600 }}>
+                        {isLookalike ? 'HIGH (SUSPECTED)' : 'LOW (PASS)'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Metocean Environmental Station */}
-          <div className="glass-panel" style={{ padding: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-              <Waves size={16} color="var(--accent-cyan)" />
-              <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metocean Drift Forcing</h4>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Surface Current (CMEMS)</span>
-                <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>0.29 m/s @ 121°</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>10m Wind Speed (ERA5)</span>
-                <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>5.00 m/s @ 127°</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid var(--border-color)' }}>
-                <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>Net Surface Drift</span>
-                <span className="mono" style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>0.45 m/s @ 123°</span>
-              </div>
-            </div>
-          </div>
+                {/* Metocean Drift Forcing */}
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <Waves size={16} color="var(--accent-cyan)" />
+                    <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metocean Drift Forcing</h4>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Surface Wind Speed</span>
+                      <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>
+                        {windSpeed !== undefined ? `${windSpeed.toFixed(2)} m/s` : '5.00 m/s'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Model Source</span>
+                      <span className="mono" style={{ color: '#fff', fontWeight: 600 }}>CMEMS & ERA5</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid var(--border-color)' }}>
+                      <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>Hindcast Trajectory</span>
+                      <span className="mono" style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>
+                        {hindcastHours}h Backward Drift
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+
 
           {/* Detected Slick Geometry */}
           {dossier?.detected_slick && (
@@ -495,7 +582,7 @@ export default function App() {
               style={{ width: '100%', accentColor: 'var(--accent-cyan)', marginBottom: '10px' }}
             />
             <button
-              onClick={fetchInvestigation}
+              onClick={() => fetchInvestigation()}
               disabled={loading}
               style={{
                 width: '100%',

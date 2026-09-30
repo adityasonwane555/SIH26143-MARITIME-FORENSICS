@@ -15,6 +15,22 @@ _INVESTIGATION_CACHE: Dict[str, ForensicDossier] = {}
 _ENGINE = ForensicAttributionEngine(dt_seconds=300.0)
 
 
+def get_case_paths(case_id: str):
+    """Resolves local data asset paths for a given incident case."""
+    case_dir = os.path.join("data", "cases", case_id)
+    if os.path.exists(case_dir):
+        return (
+            os.path.join(case_dir, "detected_slick.geojson"),
+            os.path.join(case_dir, "metocean.json"),
+            os.path.join(case_dir, "vessel_traffic.csv")
+        )
+    return (
+        "data/synthetic/detected_slick.geojson",
+        "data/synthetic/metocean.json",
+        "data/synthetic/vessel_traffic.csv"
+    )
+
+
 @router.post("/run", response_model=ForensicDossier)
 def run_investigation(
     case_id: str = Query("CASE_005_SYNTHETIC_CHALLENGE", description="ID of incident to analyze"),
@@ -22,13 +38,14 @@ def run_investigation(
 ):
     """Executes the closed-loop forensic investigation pipeline."""
     try:
-        # Load benchmark scenario data
-        slick_path = "data/synthetic/detected_slick.geojson"
-        metocean_path = "data/synthetic/metocean.json"
-        ais_path = "data/synthetic/vessel_traffic.csv"
+        slick_path, metocean_path, ais_path = get_case_paths(case_id)
 
         if not os.path.exists(slick_path) or not os.path.exists(metocean_path) or not os.path.exists(ais_path):
-            raise HTTPException(status_code=400, detail="Scenario assets not found. Generate scenario first.")
+            raise HTTPException(status_code=400, detail=f"Scenario assets for {case_id} not found.")
+
+        catalog = ForensicDataLoader.load_case_catalog("data/metadata/cases.csv")
+        case_meta = next((c for c in catalog if c["case_id"] == case_id), None)
+        title = case_meta["incident_name"] if case_meta else f"Incident {case_id}"
 
         spill = ForensicDataLoader.load_slick_geojson(slick_path)
         metocean = ForensicDataLoader.load_metocean_json(metocean_path)
@@ -36,7 +53,7 @@ def run_investigation(
 
         dossier = _ENGINE.run_investigation(
             incident_id=case_id,
-            title="Synthetic Multi-Candidate Benchmark",
+            title=title,
             spill=spill,
             metocean=metocean,
             tracks=tracks,
@@ -48,6 +65,7 @@ def run_investigation(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Investigation failed: {str(e)}")
+
 
 
 @router.get("/dossier/{case_id}", response_model=ForensicDossier)
@@ -97,8 +115,10 @@ def get_geospatial_layers(case_id: str):
             features.append(c_feat)
 
     # 3. AIS Vessel Tracks
-    tracks = ForensicDataLoader.load_ais_csv("data/synthetic/vessel_traffic.csv")
+    _, _, ais_path = get_case_paths(case_id)
+    tracks = ForensicDataLoader.load_ais_csv(ais_path)
     for t in tracks:
+
         line_coords = [[p.longitude, p.latitude] for p in t.points]
         features.append({
             "type": "Feature",

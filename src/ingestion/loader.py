@@ -87,13 +87,18 @@ class ForensicDataLoader:
         ts_str = data.get("timestamp")
         ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00")) if ts_str else datetime.now(timezone.utc)
 
+        u_curr = float(data.get("u_current_ms") or data.get("current_u_mps") or data.get("u_current") or 0.0)
+        v_curr = float(data.get("v_current_ms") or data.get("current_v_mps") or data.get("v_current") or 0.0)
+        u_wind = float(data.get("u_wind10_ms") or data.get("wind_u_mps") or data.get("u_wind") or 0.0)
+        v_wind = float(data.get("v_wind10_ms") or data.get("wind_v_mps") or data.get("v_wind") or 0.0)
+
         return MetoceanObservation(
             timestamp=ts,
             grid_bounds=bounds,
-            u_current_ms=float(data.get("u_current_ms", 0.0)),
-            v_current_ms=float(data.get("v_current_ms", 0.0)),
-            u_wind10_ms=float(data.get("u_wind10_ms", 0.0)),
-            v_wind10_ms=float(data.get("v_wind10_ms", 0.0)),
+            u_current_ms=u_curr,
+            v_current_ms=v_curr,
+            u_wind10_ms=u_wind,
+            v_wind10_ms=v_wind,
             sea_surface_temp_c=data.get("sea_surface_temp_c"),
             wave_height_m=data.get("wave_height_m"),
             source=data.get("source", "UNKNOWN")
@@ -110,20 +115,31 @@ class ForensicDataLoader:
         with open(filepath, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                mmsi = str(row["MMSI"]).strip()
-                vessel_name = str(row.get("VesselName", "UNKNOWN")).strip()
-                vessel_type = str(row.get("VesselType", "Cargo")).strip()
+                # Support both uppercase and lowercase column variants
+                mmsi_raw = row.get("MMSI") or row.get("mmsi")
+                if not mmsi_raw:
+                    continue
+                mmsi = str(mmsi_raw).strip()
 
-                ts_str = row["Timestamp"]
+                vessel_name = str(row.get("VesselName") or row.get("vessel_name") or "UNKNOWN").strip()
+                vessel_type = str(row.get("VesselType") or row.get("vessel_type") or "Cargo").strip()
+
+                ts_str = row.get("Timestamp") or row.get("timestamp")
                 ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+
+                lat = float(row.get("Latitude") or row.get("latitude") or 0.0)
+                lon = float(row.get("Longitude") or row.get("longitude") or 0.0)
+                sog = float(row.get("SOG") or row.get("sog_knots") or row.get("sog") or 0.0)
+                cog = float(row.get("COG") or row.get("cog_degrees") or row.get("cog") or 0.0)
+                heading_val = row.get("Heading") or row.get("heading") or cog
 
                 pt = AISPoint(
                     timestamp=ts,
-                    latitude=float(row["Latitude"]),
-                    longitude=float(row["Longitude"]),
-                    sog_knots=float(row.get("SOG", 0.0)),
-                    cog_degrees=float(row.get("COG", 0.0)),
-                    heading=float(row.get("Heading", row.get("COG", 0.0)))
+                    latitude=lat,
+                    longitude=lon,
+                    sog_knots=sog,
+                    cog_degrees=cog,
+                    heading=float(heading_val)
                 )
 
                 if mmsi not in tracks_by_mmsi:
@@ -134,6 +150,7 @@ class ForensicDataLoader:
                         "points": []
                     }
                 tracks_by_mmsi[mmsi]["points"].append(pt)
+
 
         # Build AISTrack objects and analyze continuity
         track_list: List[AISTrack] = []
